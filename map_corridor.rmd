@@ -1,0 +1,359 @@
+---
+title: "map_corridor"
+author: "Marco Binetti"
+date: "8/11/2023"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries
+```{r}
+
+## import data
+library(devtools)
+library(readxl)
+
+## manage data
+library(WDI)
+library(classInt)
+library(gtools)
+library(gridExtra)
+library(reshape)
+
+library(data.table)
+library(R.utils)
+library(plyr)
+library(dplyr) # NB this has to be always loaded AFTER plyr!
+library(tidyverse)
+library(tidyr)
+library(naniar)
+library(zoo)
+library(stringr)
+library(tidytext)
+library(gridExtra)
+library(stringr)
+library(dvmisc)
+
+
+## general plotting
+library(ggplot2)
+library(grid)
+library(ggpubr)
+library(cowplot)
+library(Hmisc)
+
+## manage maps - calculate distances
+library(geosphere)
+library(rworldmap)
+library(rgdal)
+library(sf)
+library(rgeos)
+library(maps)
+library(mapdata)
+library(ggmap)
+library(tmap)
+library(GADMTools)
+library(mapproj)
+library(cartography)
+library(elevatr)
+library(raster)
+library(sp)   
+library(PBSmapping)
+
+## manage images
+library(magick)
+
+```
+
+# Remove lists 
+```{r, include=FALSE}
+## remove lists
+rm(list=ls())
+```
+
+
+
+# Balkans 1 Map
+#### colletting data
+```{r}
+
+List_ctrs_m<-c("Hungary","Serbia","Macedonia","Greece")
+
+## import countries via a loop and merge them in a single polygon
+ac <- list()
+for (i in 1:length(List_ctrs_m)){
+  ac[[i]] <- getData('GADM', country=List_ctrs_m[i] , level=0)
+}
+polygon <- do.call("bind", ac)
+polygon_sf__nctrs <- st_as_sf(polygon)
+
+
+
+
+## Neighboring countries
+# select countries around Italy
+List_ctrs<-c( "Italy",
+               "Croatia",
+               "Austria",
+               "Bulgaria",
+               "Germany",
+              "France",
+              "Ukraine",
+              "Romania",
+              "Moldova",
+              "Poland",
+              "Slovenia",
+              "Bosnia and Herzegovina",
+              "Czech Republic",
+              "Slovakia",
+              "Switzerland",
+              "Kosovo",
+              "Montenegro",
+               "Turkey",
+              "Albania")
+
+## import countries via a loop and merge them in a single polygon
+ac <- list()
+for (i in 1:length(List_ctrs)){
+  ac[[i]] <- getData('GADM', country=List_ctrs[i] , level=0)
+}
+polygon <- do.call("bind", ac)
+polygon_sf__neig_ctrs <- st_as_sf(polygon)
+
+
+## list background countris
+List_ctrs_bg<-c("Hungary",
+                "Serbia",
+                "Macedonia",
+                "Greece",
+                "Austria",
+                "Croatia",
+                "Slovakia")
+
+## import countries via a loop and merge them in a single polygon
+ac <- list()
+for (i in 1:length(List_ctrs_bg)){
+  ac[[i]] <- getData('GADM', country=List_ctrs_bg[i] , level=0)
+}
+polygon <- do.call("bind", ac)
+polygon_sf__bg_ctrs <- st_as_sf(polygon)
+
+
+
+## import cities
+# Import cities
+Cities_df<-(world.cities)
+# assign coordinates  
+Cities_df <- st_as_sf(x = Cities_df, 
+                           coords = c("long", "lat"),
+                           crs = "+proj=longlat +datum=WGS84 +ellps=WGS84 + no_defs")
+
+# subset main cities
+Capital_city<-subset(Cities_df,  Cities_df$capital==1 &
+                                 Cities_df$country.etc %in% List_ctrs_m |
+                                 Cities_df$name=="Skopje")
+
+```
+
+### plotting data
+```{r}
+## generate name districts
+main_bg<-tm_shape(polygon_sf__bg_ctrs)+
+  tm_borders(lwd=0,
+             col = "black",
+             lty = "solid",
+             alpha = 0) 
+
+
+
+## main ctrs
+main_ctrs<-tm_shape(polygon_sf__nctrs)+
+  tm_borders(lwd=1,
+             col = "black",
+             lty = "solid",
+             alpha = 1)+ 
+    tm_fill(col='#ffc04d') 
+
+main_neigh<-tm_shape(polygon_sf__neig_ctrs)+
+  tm_borders(lwd=1,
+             col = "black",
+             lty = "solid",
+             alpha = 1)+ 
+    tm_fill(col='#b1b1b1')
+
+Cities<-tm_shape(Capital_city)+ 
+  tm_symbols(col='#8b0000', # colour of the dot
+             alpha = 1, # transparency
+             border.col = "black", # colour of the border
+             border.lwd=4, #size of the border
+             size=0.5)# size of the dot
+
+### create segments
+cds2 <- rbind(c(23.73, 37.98), c(21.47, 42))
+# create a spatial object
+Lines1 <- spLines(cds2)
+
+seg1<-tm_shape(Lines1)+ 
+  tm_lines(lwd=2,
+             col = "#8b0000",
+             lty = "solid",
+             alpha = 1)
+### create segments
+
+cds2 <- rbind(c(21.47, 42), c(20.5, 44.83))
+# create a spatial object
+Lines2 <- spLines(cds2)
+seg2<-tm_shape(Lines2)+ 
+  tm_lines(lwd=2,
+             col = "#8b0000",
+             lty = "solid",
+             alpha = 1)
+
+### create segments
+cds2 <- rbind(c(19.08, 47.51), c(20.5, 44.83))
+# create a spatial object
+Lines3 <- spLines(cds2)
+seg3<-tm_shape(Lines3)+ 
+  tm_lines(lwd=2,
+             col = "#8b0000",
+             lty = "solid",
+             alpha = 1)
+
+
+Lo<-tm_layout(main.title = "China-Europe Land-Sea \nExpress Route",
+              frame = FALSE)
+
+
+
+## BP
+BP<- data.frame(NAME = c("Budapest "),
+                  Lat = 47.5 ,
+                  Long = 21.7 )
+
+BP <- st_as_sf(x = BP, 
+                       coords = c("Long", "Lat"),
+                       crs = "+proj=longlat +datum=WGS84 +no_defs")
+
+
+BP<-tm_shape(BP)+
+  tm_text("NAME",
+          size = 1,
+          col = "black",
+          fontface="bold",
+          shadow = TRUE)
+
+
+
+
+## BG
+BG<- data.frame(NAME = c("Belgrad "),
+                  Lat = 45 ,
+                  Long = 22.7 )
+
+BG <- st_as_sf(x = BG, 
+                       coords = c("Long", "Lat"),
+                       crs = "+proj=longlat +datum=WGS84 +no_defs")
+
+
+BG<-tm_shape(BG)+
+  tm_text("NAME",
+          size = 1,
+          col = "black",
+          fontface="bold",
+          shadow = TRUE)
+
+
+
+## SP
+SP<- data.frame(NAME = c("Skopje  "),
+                  Lat = 42 ,
+                  Long = 23.5 )
+
+SP <- st_as_sf(x = SP, 
+                       coords = c("Long", "Lat"),
+                       crs = "+proj=longlat +datum=WGS84 +no_defs")
+
+
+SP<-tm_shape(SP)+
+  tm_text("NAME",
+          size = 1,
+          col = "black",
+          fontface="bold",
+          shadow = TRUE)
+
+
+## PI
+PI<- data.frame(NAME = c("Piräus   "),
+                  Lat = 37.3 ,
+                  Long = 22.5 )
+
+PI <- st_as_sf(x = PI, 
+                       coords = c("Long", "Lat"),
+                       crs = "+proj=longlat +datum=WGS84 +no_defs")
+
+
+PI<-tm_shape(PI)+
+  tm_text("NAME",
+          size = 1,
+          col = "black",
+          fontface="bold",
+          shadow = TRUE)
+
+
+
+map1<-main_bg+
+main_ctrs+
+Lo+
+main_neigh+
+Cities+
+seg1+
+seg2+
+seg3+  
+Cities+
+BP+  
+BG+
+SP+  
+PI 
+
+map1
+
+```
+
+
+
+```{r}
+png("C:/Users/marco/Desktop/MM/map1.png",
+   width=5000,
+   height=3286,
+  res=600)
+
+map1
+
+dev.off()
+```
+
+### Cropping a map
+```{r}
+# here more detailed information on what you can do with pics
+# https://cran.r-project.org/web/packages/magick/vignettes/intro.html#Cut_and_edit
+
+## import png
+Map1<-image_read("C:/Users/marco/Desktop/MM/map1.png")
+
+# cropping the sides
+Map_crop<-image_crop(Map1, "5000x3286-1000") # cutting on the left
+Map_crop<-image_crop(Map_crop, "5000x3286+1000") # cutting on the right
+
+# export it
+image_write(Map_crop, path ="C:/Users/marco/Desktop/MM/map1c.png", format = "png")
+```
+
+
+
+```{r}
+
+```
