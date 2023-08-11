@@ -357,6 +357,7 @@ image_write(Map_crop, path ="C:/Users/marco/Desktop/MM/map1c.png", format = "png
 ```{r}
 #adding a new line
 #adding another line
-# add third line
+#add third line
 #add 4th line
+#add 5th line
 ```
